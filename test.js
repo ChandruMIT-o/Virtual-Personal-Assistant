@@ -29,6 +29,14 @@ const messageSchema = new mongoose.Schema({
 
 const Message = whatsappDb.model('messages', messageSchema); // for whatsappDb
 
+const updatesSchema = new mongoose.Schema({
+    message_id: String,      // Reference to the message ID
+    isPending: Boolean,      // Indicates if the update is pending
+    update_type: String      // Type of update (e.g., "feedback")
+});
+
+const Update = whatsappDb.model('updates', updatesSchema); // Create 'updates' collection
+
 const client = new Client({
     authStrategy: new LocalAuth(), // Enable LocalAuth for persistent sessions
 });
@@ -100,7 +108,7 @@ client.on('message', async (message) => {
         const newMessage = new Message(msgData);
         await newMessage.save();
         console.log('Incoming message saved to database.');
-    } 
+    }
     else {
         console.log('Message starts with "%". Skipping operation.');
     }
@@ -115,8 +123,6 @@ client.on('message_create', async (message) => {
             const quotedMessageText = quotedMessage.body.split('\n')[0].slice(1); // Remove first character and get the first line
             const quotedMessageId = quotedMessageText; // Treat the extracted text as messageId
 
-            console.log(quotedMessageId)
-            
             // Find the corresponding document in the messages database
             const doc = await Message.findOne({ messageId: quotedMessageId });
 
@@ -126,13 +132,23 @@ client.on('message_create', async (message) => {
                 doc.feedback = feedbackValue;
                 await doc.save();
                 console.log(`Updated feedback for messageId ${quotedMessageId} to ${feedbackValue}.`);
+
+                // Add a document to the 'updates' collection
+                const updateData = {
+                    message_id: quotedMessageId,
+                    isPending: false,
+                    update_type: 'feedback'
+                };
+                const newUpdate = new Update(updateData);
+                await newUpdate.save();
+                console.log(`Added feedback update to 'updates' collection for messageId ${quotedMessageId}.`);
             } else {
                 console.error(`No document found for messageId ${quotedMessageId}.`);
             }
         } catch (err) {
             console.error('Error processing thumbs feedback:', err);
         }
-    } 
+    }
     else if (message.body.charAt(0) !== '✽') {
         if (message.fromMe) {
             console.log(`User message: ${message.body}`);
@@ -216,15 +232,15 @@ const Todo = todoDb.model('Todo', todoListSchema, 'TODOLIST');
  */
 
 function formatTaskMessage(task) {
-    return `✽${task.message_id}`+
-      `\n\n*New Task Added:*\n\n` +
-      `*Category:*\n ${task.category}\n\n` +
-      `*Title:*\n ${task.title}\n\n` +
-      `*Description:*\n ${task.description}\n\n` +
-      `*Due Date:*\n ${task.due_date}\n\n` +
-      `*Priority:*\n ${task.priority}\n\n` +
-      `*Status:* ${task.status}`;
-  }
+    return `✽${task.message_id}` +
+        `\n\n*New Task Added:*\n\n` +
+        `*Category:*\n ${task.category}\n\n` +
+        `*Title:*\n ${task.title}\n\n` +
+        `*Description:*\n ${task.description}\n\n` +
+        `*Due Date:*\n ${task.due_date}\n\n` +
+        `*Priority:*\n ${task.priority}\n\n` +
+        `*Status:* ${task.status}`;
+}
 
 /**
  * Function to monitor the TODO list collection for new tasks
