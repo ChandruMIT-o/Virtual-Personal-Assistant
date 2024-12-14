@@ -83,7 +83,7 @@ def parse_task_string(task_string: str):
     return task_dict
 
 def extract_using_gemini(formatted_time, catagories_string, message, feedback=""):
-    API_KEY = 'AIzaSyDWki8PZMr6rotpuelz6xdXhw0h63YBYeQ'
+    API_KEY = '' # Need to add this!
     genai.configure(api_key=API_KEY)
 
     feedback = "\nFeedback:\n " + feedback
